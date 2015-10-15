@@ -47,7 +47,8 @@ UA_PS4 = 'PS4Application libhttp/1.000 (PS4) libhttp/3.00 (PlayStation 4)'
 
 def categories():                    
     addDir('Today\'s Games','/live',100,ICON,FANART)
-    addDir('Enter Date','/date',200,ICON,FANART)      
+    addDir('Enter Date','/date',200,ICON,FANART)
+    #addDir('Quick Picks','/qp',300,ICON,FANART)      
 
 def todaysGames(game_day):
     print "GAME DAY = " + str(game_day)        
@@ -126,6 +127,14 @@ def todaysGames(game_day):
         except:
             pass
 
+        '''
+        "hasArchiveAwayVideo": false,
+        "hasArchiveFrenchVideo": false,
+        "hasArchiveHomeVideo": true,
+        "hasCondensedVideo": true,
+        "hasContinuousVideo": true,
+        "hasFullGameVideo": false
+        '''
 
         archive_video = game['gameHighlightVideo']
         archive_feeds = 0
@@ -175,6 +184,8 @@ def publishPoint(game_id,ft,gs):
     #---------------------
     # live 
     # dvr    
+    # condensed
+    # highlights
     #---------------------
 
     #token = epoch time (in milliseconds) + "." + token???
@@ -211,7 +222,7 @@ def publishPoint(game_id,ft,gs):
         
         #Error 401 for invalid cookies
         if e.code == 401:
-            #Remove cookies file and attempt to login and try again
+            #Clear cookies file and attempt to login and try again
             cj.clear()
             login()
             try:
@@ -338,6 +349,8 @@ def streamSelect(live_feeds,archive_feeds):
     print archive_feeds
     stream_title = []
     ft = []
+    archive_type = ['Full Game','Condensed','Highlights']
+    archive_gs = ['dvr','condensed','highlights']
     
     if int(live_feeds) > 1:
         gs = 'live'
@@ -356,8 +369,13 @@ def streamSelect(live_feeds,archive_feeds):
         #if live_feeds[4] == "1":
         stream_title.append('Goalie Cam 2')
         ft.append('128')
-    elif int(archive_feeds) > 1:
-        gs = 'dvr'
+    elif int(archive_feeds) > 1:       
+        dialog = xbmcgui.Dialog()          
+        n = dialog.select('Choose Archive', archive_type)
+        if n == -1:
+            sys.exit()
+
+        gs = archive_gs[n]        
         if archive_feeds[0] == "1":
             stream_title.append('Home')
             ft.append('2')
@@ -367,15 +385,25 @@ def streamSelect(live_feeds,archive_feeds):
         if archive_feeds[2] == "1":
             stream_title.append('French')
             ft.append('8')
+       
     else:
         msg = "No playable streams found."
         dialog = xbmcgui.Dialog() 
         ok = dialog.ok('Streams Not Found', msg)
         sys.exit()
 
-  
-    dialog = xbmcgui.Dialog() 
-    n = dialog.select('Choose Stream', stream_title)    
+    
+    n = -1
+    is_highlights = 0
+    if gs != 'highlights':
+        dialog = xbmcgui.Dialog() 
+        n = dialog.select('Choose Stream', stream_title)  
+    else:
+        #Make home stream
+        is_highlights = 1
+        gs = 'condensed'
+        n = 0
+
     if n > -1:
         #Even though cookies haven't expired some calls won't run unless the cookies are fairly new???
         #Login checking is now done at the publishpoint. If error 401 is received a login is submitted and the stream url is requested again
@@ -392,6 +420,9 @@ def streamSelect(live_feeds,archive_feeds):
             if ft[n] != '64' and ft[n] != '128' and bndwth != '5000':
                 stream_url = stream_url.replace('_hd_ced.m3u8', '_hd_'+bndwth+'_ced.m3u8')    
 
+            if is_highlights:
+                stream_url = stream_url.replace('_condensed_1_ced.mp4.m3u8', '_continuous_1_1600.mp4')
+
             #Add user-agent to stream
             stream_url = stream_url + '|User-Agent='+UA_GCL
 
@@ -402,6 +433,15 @@ def streamSelect(live_feeds,archive_feeds):
     else:
         sys.exit()
 
+def quickPicks():    
+    url = 'http://smb.cdnak.neulion.com/fs/nhl/mobile/feed_new/data/catvideo/xbox/nhl_0.json'
+    req = urllib2.Request(url)    
+    req.add_header('Connection', 'keep-alive')
+    req.add_header('Accept', '*/*')
+    req.add_header('User-Agent', UA_IPAD)
+    req.add_header('Accept-Language', 'en-us')
+    req.add_header('Accept-Encoding', 'gzip, deflate')
+    #addLink(name,url,title,iconimage,fanart=None)
 
 def find(source,start_str,end_str):    
     start = source.find(start_str)
